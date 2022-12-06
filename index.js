@@ -59,10 +59,10 @@ app.get('/test', function(req, res){
             "stage": "release",
             "ownerId": "0f256982c80b4e13abef4917b93ac343",
             "evaluationDate": "2020-04-22T18:30:04.404+0000",
-            "affectedComponentCount": 10,
-            "criticalComponentCount": 2,
-            "severeComponentCount": 5,
-            "moderateComponentCount": 3,
+            "affectedComponentCount": 999,
+            "criticalComponentCount": 9,
+            "severeComponentCount": 9,
+            "moderateComponentCount": 9,
             "outcome": "fail",
             "reportId": "36f37cf776dd408bacd063450ab04f71"
         }
@@ -73,13 +73,29 @@ app.get('/test', function(req, res){
 
 // Do this for different webhook messages
 function processIqData(e) {
-    //Check if this is an application scan report
-    if(e.applicationEvaluation.application.publicId != undefined){
-        formatSlackNotification(e)
+    // console.log(JSON.stringify(e))
+    // console.log("-------------------------------")
+    
+    //Policy Management
+    if(e.hasOwnProperty("type") && e.type == "POLICY"){
+        formatPolicyActionSlackNotification(e)
     }
+
+    //Application Evaluation (detailed app data)
+    if(e.hasOwnProperty("applicationEvaluation")){
+        formatAppEvaluationSlackNotification(e)
+    }
+
+    //License Override Management
+    if(e.hasOwnProperty("licenseOverride")){
+        formatLicenseManagementSlack(e)
+    }
+
+    //Violation Alert (minimal data from app evaluation)
+    //Security Vulnerability Override Management
 }
 
-function formatSlackNotification(e) {
+function formatAppEvaluationSlackNotification(e) {
     let scanURL = IQ_URL+"assets/index.html#/applicationReport/"+e.applicationEvaluation.application.publicId+"/"+e.applicationEvaluation.reportId+"/policy"
     console.log(scanURL)
 
@@ -127,6 +143,121 @@ function formatSlackNotification(e) {
     sendSlackMessage(slackMsg)
 }
 
+function formatPolicyActionSlackNotification(e){
+    policyName = ""
+    for(let i in e.owner){
+        for(let j in e.owner[i]){
+            if(e.id == e.owner[i][j].id){
+                // console.log(e.owner[i][j].name)
+                policyName = e.owner[i][j].name;
+                break;
+            }
+        }
+    }
+
+
+    let slackMsg = {
+        "channel": "iq",
+        "blocks": [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Nexus IQ Administrative Action",
+                }
+            }, {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": e.type +" "+e.action+" for *"+policyName+"* in "+e.owner.name+" "+e.owner.type.toLowerCase()+"."
+                    },
+                ]
+            }, {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Visit Nexus IQ Server"
+                        },
+                        "style": "primary",
+                        "url": IQ_URL
+                    }
+                ]
+            }
+        ]
+    }
+    sendSlackMessage(slackMsg)
+}
+
+function formatLicenseManagementSlack(e){
+
+    let comments = ""
+    if(e.licenseOverride.comment.length > 1){
+        comments = "\n\nComments: \""+e.licenseOverride.comment+"\""
+    }
+
+    let lics = e.licenseOverride.licenseIds.toString()
+    lics = lics.replaceAll(",", ", ")
+
+
+    let mainText =  "component "+ extractComponentName(e.licenseOverride.componentIdentifier)
+    if(e.licenseOverride.licenseIds.length >0){
+        mainText +=" - license(s): "+lics
+    }
+
+    let slackMsg = {
+        "channel": "iq",
+        "blocks": [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": "Nexus IQ License Override",
+                }
+            }, {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": "License "+e.licenseOverride.status+" for "+mainText+". "+comments
+                    },
+                ]
+            }, {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Visit Nexus IQ Server"
+                        },
+                        "style": "primary",
+                        "url": IQ_URL
+                    }
+                ]
+            }
+        ]
+    }
+
+    sendSlackMessage(slackMsg)
+}
+
+function extractComponentName(e){
+    //Pass in componentIdentifier
+    let name  = "";
+    if(e.format == "maven"){
+        name = e.coordinates.groupId+" : "+e.coordinates.artifactId+" : "+e.coordinates.version
+        name += " ("+e.format+")"
+
+    }else{
+        name = e.coordinates.packageId+" : "+e.coordinates.version+ " ("+e.format+")"
+    }
+    return name;
+}
+
 
 /*****************/
 // Sender
@@ -146,12 +277,14 @@ function sendSlackMessage(e){
 
     //Send new slack message
     axios(config).then(function (response) {
-        console.log(JSON.stringify(response.data));
+        console.log("Slack response: "+JSON.stringify(response.data));
     })
     .catch(function (error) {
         console.log(error);
     });
 }
+
+
 
 app.listen(PORT || 3000);
 console.log("Running on http://localhost:"+PORT+"/")
