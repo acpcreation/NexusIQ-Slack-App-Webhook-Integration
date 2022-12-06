@@ -9,7 +9,7 @@ app.use(express.json());
 /*  Welcome to the Slack Webhook processor for IQ.
     In this script we process an Nexus IQ message and send it to a Slack app. 
 
-    Make sure to update the Environment Variables below.
+    Make sure to update the Environment Variables in the .env file.
 */
 
 /*****************/
@@ -28,13 +28,6 @@ app.post('/slack', function(req, res){
     var data = req.body;
     // console.log("New Slack Message from IQ!");
     // console.log(data)
-    
-    // Write to file for testing
-    // const fs = require('fs')
-    // data = JSON.stringify(data)
-    // fs.writeFile('test.json', data, (err) => {
-    //     if (err) throw err;
-    // });
 
     res.send({status:200})
     processIqData(data)
@@ -91,8 +84,8 @@ function processIqData(e) {
         formatLicenseManagementSlack(e)
     }
 
-    //Violation Alert (minimal data from app evaluation)
-    //Security Vulnerability Override Management
+    //TBD: Violation Alert (minimal data from app evaluation)
+    //TBD: Security Vulnerability Override Management
 }
 
 function formatAppEvaluationSlackNotification(e) {
