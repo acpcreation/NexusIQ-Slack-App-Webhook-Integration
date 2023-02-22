@@ -21,8 +21,6 @@ IQ_URL = process.env.IQ_URL
 /*****************/
 
 
-// formatViolationAlertSlackNotification(1)
-
 
 /*****************/
 // RECEIVER
@@ -78,9 +76,9 @@ function processIqData(e) {
     }
 
     // Application Evaluation (minimal data from app evaluation)
-    // if(e.hasOwnProperty("applicationEvaluation")){
-    //     formatAppEvaluationSlackNotification(e)
-    // }
+    if(e.hasOwnProperty("applicationEvaluation") && e.hasOwnProperty("policyAlerts")==false){
+        formatAppEvaluationSlackNotification(e)
+    }
 
     // Violation alert (detailed app data)
     if (e.hasOwnProperty("policyAlerts")) {
@@ -181,7 +179,6 @@ function formatViolationAlertSlackNotification(e) {
                     details:violation
                 })
             }
-
         }
     }
     
@@ -197,8 +194,7 @@ function formatViolationAlertSlackNotification(e) {
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": "New Security Violation(s) found for "+ e.application.name+" with Nexus IQ Continuous Monitoring",
-                    // "emoji": true
+                    "text": "New Security Violation(s) found for "+ e.application.name+" with Sonatype Continuous Monitoring",
                 }
             }, {
                 "type": "section",
